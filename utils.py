@@ -328,7 +328,7 @@ def grouper(n, iterable):
         yield chunk
 
 
-def metrics(prediction, target, ignored_labels=[], n_classes=None):
+def metrics(prediction, target, training_time, testing_time, ignored_labels=[], n_classes=None):
     """Compute and print metrics (accuracy, confusion matrix and F1 scores).
 
     Args:
@@ -382,6 +382,12 @@ def metrics(prediction, target, ignored_labels=[], n_classes=None):
     kappa = (pa - pe) / (1 - pe)
     results["Kappa"] = kappa
 
+    # Compute time
+    results["TrainingTime"] = training_time
+    results["TestingTime"] = testing_time
+
+    results["TotalTime"] = training_time + testing_time
+
     return results
 
 
@@ -392,6 +398,9 @@ def show_results(results, vis, label_values=None, agregated=False):
         accuracies = [r["Accuracy"] for r in results]
         kappas = [r["Kappa"] for r in results]
         F1_scores = [r["F1 scores"] for r in results]
+        training_times = [r["TrainingTime"] for r in results]
+        testing_times = [r["TestingTime"] for r in results]
+        total_times = [r["TotalTime"] for r in results]
 
         F1_scores_mean = np.mean(F1_scores, axis=0)
         F1_scores_std = np.std(F1_scores, axis=0)
@@ -402,6 +411,9 @@ def show_results(results, vis, label_values=None, agregated=False):
         accuracy = results["Accuracy"]
         F1scores = results["F1 scores"]
         kappa = results["Kappa"]
+        training_time = results["TrainingTime"]
+        testing_time = results["TestingTime"]
+        total_time = results["TotalTime"]
 
     vis.heatmap(cm, opts={'title': "Confusion matrix",
                           'marginbottom': 150,
@@ -435,9 +447,28 @@ def show_results(results, vis, label_values=None, agregated=False):
                                                       np.std(kappas)))
     else:
         text += "Kappa: {:.03f}\n".format(kappa)
+        
+    if agregated:
+        text += ("Training time : {:.03f} +- {:.03f}\n".format(np.mean(training_times),
+                                                      np.std(training_times)))
+    else:
+        text += "Training time : {:.03f}\n".format(training_time)
+    
+    if agregated:
+        text += ("Testing time : {:.03f} +- {:.03f}\n".format(np.mean(testing_times),
+                                                      np.std(testing_times)))
+    else:
+        text += "Testing time : {:.03f}\n".format(testing_time)
+
+    if agregated:
+        text += ("Total time : {:.03f} +- {:.03f}\n".format(np.mean(total_times),
+                                                      np.std(total_times)))
+    else:
+        text += "Total time : {:.03f}\n".format(total_time)
 
     vis.text(text.replace('\n', '<br/>'))
     print(text)
+
 
 
 def sample_gt(gt, train_size, mode='random'):

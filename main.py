@@ -14,6 +14,8 @@ For commercial use, please contact the authors.
 from __future__ import print_function
 from __future__ import division
 
+import time
+
 # Torch
 import torch
 import torch.utils.data as data
@@ -333,13 +335,21 @@ for run in range(N_RUNS):
         save_model(clf, MODEL, DATASET)
         prediction = prediction.reshape(img.shape[:2])
     elif MODEL == "SVM":
+        print("------START TRAIN------")
+        train1 = time.perf_counter()
         X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
         class_weight = "balanced" if CLASS_BALANCING else None
         clf = sklearn.svm.SVC(class_weight=class_weight)
         clf.fit(X_train, y_train)
         save_model(clf, MODEL, DATASET)
+        training_time = time.perf_counter() - train1
+        print("------END TRAIN------")
+        print("------START TEST------")
+        test_time1 = time.perf_counter()
         prediction = clf.predict(img.reshape(-1, N_BANDS))
         prediction = prediction.reshape(img.shape[:2])
+        testing_time = time.perf_counter() - test_time1
+        print("------END TEST------")
     elif MODEL == "SGD":
         X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
         X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
@@ -402,6 +412,8 @@ for run in range(N_RUNS):
             model.load_state_dict(torch.load(CHECKPOINT))
 
         try:
+            print("------START TRAIN------")
+            train1 = time.perf_counter()
             train(
                 model,
                 optimizer,
@@ -414,11 +426,17 @@ for run in range(N_RUNS):
                 val_loader=val_loader,
                 display=viz,
             )
+            training_time = time.perf_counter() - train1
+            print("------END TRAIN------")
         except KeyboardInterrupt:
             # Allow the user to stop the training
             pass
 
+        print("------START TEST------")
+        test_time1 = time.perf_counter()
         probabilities = test(model, img, hyperparams)
+        testing_time = time.perf_counter() - test_time1
+        print("------END TEST------")
         prediction = np.argmax(probabilities, axis=-1)
 
     run_results = metrics(
@@ -426,6 +444,8 @@ for run in range(N_RUNS):
         test_gt,
         ignored_labels=hyperparams["ignored_labels"],
         n_classes=N_CLASSES,
+        training_time=training_time,
+        testing_time=testing_time
     )
 
     mask = np.zeros(gt.shape, dtype="bool")
