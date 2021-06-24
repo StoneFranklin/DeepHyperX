@@ -1135,7 +1135,7 @@ def train(
 
 
 def save_model(model, model_name, dataset_name, **kwargs):
-    model_dir = "./checkpoints/" + model_name + "/" + dataset_name + "/"
+    model_dir = "/mnt/checkpoints/" + model_name + "/" + dataset_name + "/" 
     """
     Using strftime in case it triggers exceptions on windows 10 system
     """

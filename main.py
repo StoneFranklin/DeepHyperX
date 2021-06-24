@@ -87,7 +87,7 @@ parser.add_argument(
     type=str,
     help="Folder where to store the "
     "datasets (defaults to the current working directory).",
-    default="./Datasets/",
+    default="/mnt/Datasets/",
 )
 parser.add_argument(
     "--cuda",
