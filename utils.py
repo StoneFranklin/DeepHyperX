@@ -391,7 +391,8 @@ def metrics(prediction, target, training_time, testing_time, ignored_labels=[], 
     return results
 
 
-def show_results(results, vis, label_values=None, agregated=False):
+#def show_results(results, vis, label_values=None, agregated=False):
+def show_results(results, label_values=None, agregated=False):
     text = ""
 
     if agregated:
@@ -415,12 +416,12 @@ def show_results(results, vis, label_values=None, agregated=False):
         testing_time = results["TestingTime"]
         total_time = results["TotalTime"]
 
-    vis.heatmap(cm, opts={'title': "Confusion matrix",
-                          'marginbottom': 150,
-                          'marginleft': 150,
-                          'width': 500,
-                          'height': 500,
-                          'rownames': label_values, 'columnnames': label_values})
+    # vis.heatmap(cm, opts={'title': "Confusion matrix",
+    #                       'marginbottom': 150,
+    #                       'marginleft': 150,
+    #                       'width': 500,
+    #                       'height': 500,
+    #                       'rownames': label_values, 'columnnames': label_values})
     text += "Confusion matrix :\n"
     text += str(cm)
     text += "---\n"
@@ -466,7 +467,7 @@ def show_results(results, vis, label_values=None, agregated=False):
     else:
         text += "Total time : {:.03f}\n".format(total_time)
 
-    vis.text(text.replace('\n', '<br/>'))
+    # vis.text(text.replace('\n', '<br/>'))
     print(text)
 
 
