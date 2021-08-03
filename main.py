@@ -26,10 +26,11 @@ import numpy as np
 import sklearn.svm
 import sklearn.model_selection
 from skimage import io
+from PIL import Image as im
 
 # Visualization
 import seaborn as sns
-import visdom
+# import visdom
 
 import os
 from utils import (
@@ -233,9 +234,9 @@ if args.download is not None and len(args.download) > 0:
         get_dataset(dataset, target_folder=FOLDER)
     quit()
 
-viz = visdom.Visdom(env=DATASET + " " + MODEL)
-if not viz.check_connection:
-    print("Visdom is not connected. Did you run 'python -m visdom.server' ?")
+# viz = visdom.Visdom(env=DATASET + " " + MODEL)
+# if not viz.check_connection:
+#     print("Visdom is not connected. Did you run 'python -m visdom.server' ?")
 
 
 hyperparams = vars(args)
@@ -265,8 +266,8 @@ def convert_to_color(x):
     return convert_to_color_(x, palette=palette)
 
 
-def convert_from_color(x):
-    return convert_from_color_(x, palette=invert_palette)
+# def convert_from_color(x):
+#     return convert_from_color_(x, palette=invert_palette)
 
 
 # Instantiate the experiment based on predefined networks
@@ -281,15 +282,15 @@ hyperparams.update(
 hyperparams = dict((k, v) for k, v in hyperparams.items() if v is not None)
 
 # Show the image and the ground truth
-display_dataset(img, gt, RGB_BANDS, LABEL_VALUES, palette, viz)
-color_gt = convert_to_color(gt)
+# display_dataset(img, gt, RGB_BANDS, LABEL_VALUES, palette, viz)
+# color_gt = convert_to_color(gt)
 
-if DATAVIZ:
-    # Data exploration : compute and show the mean spectrums
-    mean_spectrums = explore_spectrums(
-        img, gt, LABEL_VALUES, viz, ignored_labels=IGNORED_LABELS
-    )
-    plot_spectrums(mean_spectrums, viz, title="Mean spectrum/class")
+# if DATAVIZ:
+#     # Data exploration : compute and show the mean spectrums
+#     mean_spectrums = explore_spectrums(
+#         img, gt, LABEL_VALUES, viz, ignored_labels=IGNORED_LABELS
+#     )
+#     plot_spectrums(mean_spectrums, viz, title="Mean spectrum/class")
 
 results = []
 # run the experiment several times
@@ -317,8 +318,8 @@ for run in range(N_RUNS):
         "run {}/{}".format(run + 1, N_RUNS),
     )
 
-    display_predictions(convert_to_color(train_gt), viz, caption="Train ground truth")
-    display_predictions(convert_to_color(test_gt), viz, caption="Test ground truth")
+    # display_predictions(convert_to_color(train_gt), viz, caption="Train ground truth")
+    # display_predictions(convert_to_color(test_gt), viz, caption="Test ground truth")
 
     if MODEL == "SVM_grid":
         print("Running a grid search SVM")
@@ -424,7 +425,7 @@ for run in range(N_RUNS):
                 device=hyperparams["device"],
                 supervision=hyperparams["supervision"],
                 val_loader=val_loader,
-                display=viz,
+                # display=viz,
             )
             training_time = time.perf_counter() - train1
             print("------END TRAIN------")
@@ -453,16 +454,30 @@ for run in range(N_RUNS):
         mask[gt == l] = True
     prediction[mask] = 0
 
+    # Arrays of color pixel values
     color_prediction = convert_to_color(prediction)
-    display_predictions(
-        color_prediction,
-        viz,
-        gt=convert_to_color(test_gt),
-        caption="Prediction vs. test ground truth",
-    )
+    color_gt = convert_to_color(test_gt)
+
+    # Generate images from the arrays
+    color_prediction_image = im.fromarray(color_prediction)
+    color_gt_image = im.fromarray(color_gt)
+
+    # Save the images
+    color_prediction_image.save('/mnt/prediction.png')
+    color_gt_image.save('/mnt/gt.png')
+
+    # color_prediction = convert_to_color(prediction)
+    # display_predictions(
+    #     color_prediction,
+    #     viz,
+    #     gt=convert_to_color(test_gt),
+    #     caption="Prediction vs. test ground truth",
+    # )
 
     results.append(run_results)
-    show_results(run_results, viz, label_values=LABEL_VALUES)
+    # show_results(run_results, viz, label_values=LABEL_VALUES)
+    show_results(run_results, label_values=LABEL_VALUES)
 
 if N_RUNS > 1:
-    show_results(results, viz, label_values=LABEL_VALUES, agregated=True)
+    # show_results(results, viz, label_values=LABEL_VALUES, agregated=True)
+    show_results(results, label_values=LABEL_VALUES, agregated=True)
