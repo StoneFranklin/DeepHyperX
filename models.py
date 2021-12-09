@@ -1032,7 +1032,7 @@ def train(
 
     save_epoch = epoch // 20 if epoch > 20 else 1
 
-    losses = np.zeros(1000000)
+    losses = np.zeros(10000000)
     mean_losses = np.zeros(100000000)
     iter_ = 1
     loss_win, val_win = None, None
@@ -1082,30 +1082,30 @@ def train(
                     mean_losses[iter_],
                 )
                 update = None if loss_win is None else "append"
-                loss_win = display.line(
-                    X=np.arange(iter_ - display_iter, iter_),
-                    Y=mean_losses[iter_ - display_iter : iter_],
-                    win=loss_win,
-                    update=update,
-                    opts={
-                        "title": "Training loss",
-                        "xlabel": "Iterations",
-                        "ylabel": "Loss",
-                    },
-                )
+                # loss_win = display.line(
+                #     X=np.arange(iter_ - display_iter, iter_),
+                #     Y=mean_losses[iter_ - display_iter : iter_],
+                #     win=loss_win,
+                #     update=update,
+                #     opts={
+                #         "title": "Training loss",
+                #         "xlabel": "Iterations",
+                #         "ylabel": "Loss",
+                #     },
+                # )
                 tqdm.write(string)
 
-                if len(val_accuracies) > 0:
-                    val_win = display.line(
-                        Y=np.array(val_accuracies),
-                        X=np.arange(len(val_accuracies)),
-                        win=val_win,
-                        opts={
-                            "title": "Validation accuracy",
-                            "xlabel": "Epochs",
-                            "ylabel": "Accuracy",
-                        },
-                    )
+                # if len(val_accuracies) > 0:
+                #     val_win = display.line(
+                #         Y=np.array(val_accuracies),
+                #         X=np.arange(len(val_accuracies)),
+                #         win=val_win,
+                #         opts={
+                #             "title": "Validation accuracy",
+                #             "xlabel": "Epochs",
+                #             "ylabel": "Accuracy",
+                #         },
+                #     )
             iter_ += 1
             del (data, target, loss, output)
 
@@ -1135,7 +1135,7 @@ def train(
 
 
 def save_model(model, model_name, dataset_name, **kwargs):
-    model_dir = "/mnt/checkpoints/" + model_name + "/" + dataset_name + "/" 
+    model_dir = "/mnt/checkpoints/" + model_name + "/" + dataset_name + "/"
     """
     Using strftime in case it triggers exceptions on windows 10 system
     """

@@ -342,7 +342,7 @@ for run in range(N_RUNS):
         save_model(clf, MODEL, DATASET)
         prediction = prediction.reshape(img.shape[:2])
     elif MODEL == "SVM":
-        # pr.enable()
+        pr.enable()
         train1 = time.perf_counter()
         # Start training
         print("------START TRAIN------")
@@ -360,13 +360,13 @@ for run in range(N_RUNS):
         prediction = prediction.reshape(img.shape[:2])
         # Stop testing
         testing_time = time.perf_counter() - test_time1
-        # pr.disable()
+        pr.disable()
 
-        # s = io.StringIO()
-        # sortby = SortKey.CUMULATIVE
-        # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
-        # ps.print_stats()
-        # print(s.getvalue())
+        s = io.StringIO()
+        sortby = SortKey.CUMULATIVE
+        ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        ps.print_stats()
+        print(s.getvalue())
     elif MODEL == "SGD":
         X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
         X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
@@ -492,13 +492,8 @@ for run in range(N_RUNS):
 
     results.append(run_results)
     # show_results(run_results, viz, label_values=LABEL_VALUES)
-    using_gpu = "False"
-    if(CUDA_DEVICE != "cpu"):
-        using_gpu = "True"
-
-    if(N_RUNS == 1):
-        show_results(run_results, label_values=LABEL_VALUES, model=MODEL, dataset=DATASET, training_sample=SAMPLE_PERCENTAGE, gpu=args.cuda, runs=N_RUNS)
+    show_results(run_results, label_values=LABEL_VALUES)
 
 if N_RUNS > 1:
     # show_results(results, viz, label_values=LABEL_VALUES, agregated=True)
-    show_results(results, label_values=LABEL_VALUES, agregated=True, model=MODEL, dataset=DATASET, training_sample=SAMPLE_PERCENTAGE, gpu=args.cuda, runs=N_RUNS)
+    show_results(results, label_values=LABEL_VALUES, agregated=True)

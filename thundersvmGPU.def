@@ -1,0 +1,109 @@
+Bootstrap: docker
+From: ubuntu:21.04
+
+%setup
+    # Create a directory called "workspace" at the root of the image's file system.
+    mkdir ${SINGULARITY_ROOTFS}/workspace
+    # Create a directory called "data" and a directory called "Datasets" inside that folder on the host system.
+    mkdir -p data/Datasets
+
+%files
+    # Copy files from the host machine to the workspce folder on the Singularity image.
+    /home/stone/Desktop/thundersvm_GPU/main.py /workspace
+    /home/stone/Desktop/thundersvm_GPU/models.py /workspace
+    /home/stone/Desktop/thundersvm_GPU/datasets.py /workspace
+    /home/stone/Desktop/thundersvm_GPU/custom_datasets.py /workspace
+    /home/stone/Desktop/thundersvm_GPU/inference.py /workspace
+    /home/stone/Desktop/thundersvm_GPU/utils.py /workspace
+    /home/stone/Desktop/thundersvm_GPU/License /workspace
+    /home/stone/Desktop/thundersvm_GPU/README.md /workspace
+    /home/stone/Desktop/thundersvm_GPU/requirements-test.txt /workspace
+    /home/stone/Desktop/thundersvm_GPU/start.sh /workspace
+    /home/stone/Desktop/thundersvm_GPU/thundersvm_test.py /workspace
+    
+%environment
+    # Set environment variables
+    export LISTEN_PORT=8097
+    export LC_ALL=C
+    export PATH=/opt/conda/bin:$PATH
+    export DEBIAN_FRONTEND=noninteractive
+    export 
+
+%post
+    # Install necessary packages
+    apt-get update 
+    
+    apt-get install -y curl
+    apt-get install -y tzdata
+    apt-get install -y bzip2
+    apt-get install -y wget
+    apt-get install -y build-essential libssl-dev
+    apt-get install -y ca-certificates
+    ln -fs /usr/share/zoneinfo/America/New_York /etc/localtime
+    dpkg-reconfigure --frontend noninteractive tzdata
+    apt-get install -y git
+    apt install -y python3-pip
+    rm -rf /var/lib/apt/lists/*
+    curl -o ~/miniconda.sh -O  https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh  && \
+    chmod +x ~/miniconda.sh && \
+    ~/miniconda.sh -b -p /opt/conda && \
+    rm ~/miniconda.sh
+
+    apt update
+
+    apt-get install -y software-properties-common
+
+    DEBIAN_FRONTEND=noninteractive apt-get install keyboard-configuration
+
+    wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-ubuntu2004.pin
+    mv cuda-ubuntu2004.pin /etc/apt/preferences.d/cuda-repository-pin-600
+    apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/7fa2af80.pub
+    add-apt-repository "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/ /"
+    apt-get update
+    apt-get -y install cuda
+
+    cd /tmp
+    wget https://github.com/Kitware/CMake/releases/download/v3.20.0/cmake-3.20.0.tar.gz
+    tar -zxvf cmake-3.20.0.tar.gz
+    cd cmake-3.20.0
+    ./bootstrap
+    make
+    make install
+    cd /workspace
+    
+    git clone https://github.com/Xtra-Computing/thundersvm.git
+    cd thundersvm
+    mkdir build && cd build && cmake .. && make -j
+    # -DCUDA_TOOLKIT_ROOT_DIR=/usr/local/cuda-11.5 -DCUDA_CUDART_LIBRARY=/usr/local/cuda-11.5/lib64/libcudart.so -DCUDA_NVCC_EXECUTABLE=/usr/local/cuda-11.5/bin/nvcc -DCUDA_INCLUDE_DIRS=/usr/local/cuda-11.5/include
+
+    cd /workspace 
+    cp *.py /workspace/thundersvm/python
+
+    cd /workspace/thundersvm/python
+    python3 setup.py install
+%runscript
+    # When the SIF file is run, it will download the packages listed in requirements.txt if not already installed.
+    pip3 install -q --no-cache-dir --no-warn-script-location -r /workspace/requirements-test.txt
+    # cd /workspace/thundersvm/python
+    # sudo python3 setup.py install
+    # It will then run start.sh
+    sh /workspace/start.sh
+
+%startscript
+    nc -lp $LISTEN_PORT
+    
+%test
+    grep -q NAME=\"Ubuntu\" /etc/os-release
+    if [ $? -eq 0 ]; then
+        echo "Container base is Ubuntu as expected."
+    else
+        echo "Container base is not Ubuntu."
+    fi
+
+%labels
+    Author d@sylabs.io
+    Version v0.0.1
+
+%help
+    This is a demo container used to illustrate a def file that uses all
+    supported sections.
