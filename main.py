@@ -26,10 +26,11 @@ import numpy as np
 import sklearn.svm
 import sklearn.model_selection
 from skimage import io
+from PIL import Image as im
 
 # Visualization
 import seaborn as sns
-import visdom
+# import visdom
 
 import os
 from utils import (
@@ -50,6 +51,12 @@ from datasets import get_dataset, HyperX, open_file, DATASETS_CONFIG
 from models import get_model, train, test, save_model
 
 import argparse
+
+# cProfile imports
+import cProfile, pstats, io
+from pstats import SortKey
+
+pr = cProfile.Profile()
 
 dataset_names = [
     v["name"] if "name" in v.keys() else k for k, v in DATASETS_CONFIG.items()
@@ -265,8 +272,8 @@ def convert_to_color(x):
     return convert_to_color_(x, palette=palette)
 
 
-def convert_from_color(x):
-    return convert_from_color_(x, palette=invert_palette)
+# def convert_from_color(x):
+#     return convert_from_color_(x, palette=invert_palette)
 
 
 # Instantiate the experiment based on predefined networks
@@ -335,21 +342,31 @@ for run in range(N_RUNS):
         save_model(clf, MODEL, DATASET)
         prediction = prediction.reshape(img.shape[:2])
     elif MODEL == "SVM":
-        print("------START TRAIN------")
+        # pr.enable()
         train1 = time.perf_counter()
+        # Start training
+        print("------START TRAIN------")
         X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
         class_weight = "balanced" if CLASS_BALANCING else None
         clf = sklearn.svm.SVC(class_weight=class_weight)
         clf.fit(X_train, y_train)
-        save_model(clf, MODEL, DATASET)
+        print("------STOP TRAIN------")
+        # Stop training
         training_time = time.perf_counter() - train1
-        print("------END TRAIN------")
-        print("------START TEST------")
+        save_model(clf, MODEL, DATASET)
         test_time1 = time.perf_counter()
+        # Start testing
         prediction = clf.predict(img.reshape(-1, N_BANDS))
         prediction = prediction.reshape(img.shape[:2])
+        # Stop testing
         testing_time = time.perf_counter() - test_time1
-        print("------END TEST------")
+        # pr.disable()
+
+        # s = io.StringIO()
+        # sortby = SortKey.CUMULATIVE
+        # ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+        # ps.print_stats()
+        # print(s.getvalue())
     elif MODEL == "SGD":
         X_train, y_train = build_dataset(img, train_gt, ignored_labels=IGNORED_LABELS)
         X_train, y_train = sklearn.utils.shuffle(X_train, y_train)
@@ -453,6 +470,18 @@ for run in range(N_RUNS):
         mask[gt == l] = True
     prediction[mask] = 0
 
+    # Arrays of color pixel values
+    color_prediction = convert_to_color(prediction)
+    color_gt = convert_to_color(test_gt)
+
+    # Generate images from the arrays
+    color_prediction_image = im.fromarray(color_prediction)
+    color_gt_image = im.fromarray(color_gt)
+
+    # Save the images
+    color_prediction_image.save('/images/prediction.png')
+    color_gt_image.save('/images/gt.png')
+
     # color_prediction = convert_to_color(prediction)
     # display_predictions(
     #     color_prediction,
@@ -463,8 +492,13 @@ for run in range(N_RUNS):
 
     results.append(run_results)
     # show_results(run_results, viz, label_values=LABEL_VALUES)
-    show_results(run_results, label_values=LABEL_VALUES)
+    using_gpu = "False"
+    if(CUDA_DEVICE != "cpu"):
+        using_gpu = "True"
+
+    if(N_RUNS == 1):
+        show_results(run_results, label_values=LABEL_VALUES, model=MODEL, dataset=DATASET, training_sample=SAMPLE_PERCENTAGE, gpu=args.cuda, runs=N_RUNS)
 
 if N_RUNS > 1:
-     # show_results(results, viz, label_values=LABEL_VALUES, agregated=True)
-    show_results(results, label_values=LABEL_VALUES, agregated=True)
+    # show_results(results, viz, label_values=LABEL_VALUES, agregated=True)
+    show_results(results, label_values=LABEL_VALUES, agregated=True, model=MODEL, dataset=DATASET, training_sample=SAMPLE_PERCENTAGE, gpu=args.cuda, runs=N_RUNS)

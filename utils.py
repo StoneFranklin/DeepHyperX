@@ -12,6 +12,8 @@ from scipy import io, misc
 import os
 import re
 import torch
+import imageio
+import spectral.io.envi as envi
 
 def get_device(ordinal):
     # Use GPU ?
@@ -35,10 +37,11 @@ def open_file(dataset):
         return io.loadmat(dataset)
     elif ext == '.tif' or ext == '.tiff':
         # Load TIFF file
-        return misc.imread(dataset)
+        return imageio.volread(dataset)
     elif ext == '.hdr':
-        img = spectral.open_image(dataset)
-        return img.load()
+        # img = spectral.open_image(dataset)
+        img = envi.open(dataset, "/mnt/Datasets/DFC2018_HSI/20170218_UH_CASI_S4_NAD83.pix")
+        return img
     else:
         raise ValueError("Unknown file format: {}".format(ext))
 
@@ -390,10 +393,22 @@ def metrics(prediction, target, training_time, testing_time, ignored_labels=[], 
 
     return results
 
+def get_gpu_info(ordinal):
+    # Use GPU ?
+    output = ""
+    if ordinal < 0:
+        output = "Computation on: CPU \n"
+    elif torch.cuda.is_available():
+        output = "Computation on: CUDA GPU device {}\n".format(ordinal)
+    else:
+        output = "/!\\ CUDA was requested but is not available! Computation will go on CPU. /!\\\n"
+    return output
 
 #def show_results(results, vis, label_values=None, agregated=False):
-def show_results(results, label_values=None, agregated=False):
+def show_results(results, model, dataset, training_sample, gpu, runs, label_values=None, agregated=False):
+    c_matrix = ""
     text = ""
+    agregatedText = ""
 
     if agregated:
         accuracies = [r["Accuracy"] for r in results]
@@ -406,7 +421,7 @@ def show_results(results, label_values=None, agregated=False):
         F1_scores_mean = np.mean(F1_scores, axis=0)
         F1_scores_std = np.std(F1_scores, axis=0)
         cm = np.mean([r["Confusion matrix"] for r in results], axis=0)
-        text += "Agregated results :\n"
+        agregatedText += "Aggregated results:\n"
     else:
         cm = results["Confusion matrix"]
         accuracy = results["Accuracy"]
@@ -422,55 +437,68 @@ def show_results(results, label_values=None, agregated=False):
     #                       'width': 500,
     #                       'height': 500,
     #                       'rownames': label_values, 'columnnames': label_values})
-    text += "Confusion matrix :\n"
-    text += str(cm)
-    text += "---\n"
+    c_matrix += "Confusion matrix:\n"
+    c_matrix += str(cm)
+    c_matrix += "\n---\n"
 
     if agregated:
-        text += ("Accuracy: {:.03f} +- {:.03f}\n".format(np.mean(accuracies),
+        agregatedText += ("Accuracy: {:.03f} +- {:.03f}\n".format(np.mean(accuracies),
                                                          np.std(accuracies)))
     else:
-        text += "Accuracy : {:.03f}%\n".format(accuracy)
+        text += "Accuracy: {:.03f}%\n".format(accuracy)
     text += "---\n"
 
-    text += "F1 scores :\n"
+    text += "F1 scores:\n"
     if agregated:
         for label, score, std in zip(label_values, F1_scores_mean,
                                      F1_scores_std):
-            text += "\t{}: {:.03f} +- {:.03f}\n".format(label, score, std)
+            agregatedText += "\t{}: {:.03f} +- {:.03f}\n".format(label, score, std)
     else:
         for label, score in zip(label_values, F1scores):
             text += "\t{}: {:.03f}\n".format(label, score)
     text += "---\n"
 
     if agregated:
-        text += ("Kappa: {:.03f} +- {:.03f}\n".format(np.mean(kappas),
+        agregatedText += ("Kappa: {:.03f} +- {:.03f}\n".format(np.mean(kappas),
                                                       np.std(kappas)))
     else:
         text += "Kappa: {:.03f}\n".format(kappa)
-        
+
     if agregated:
-        text += ("Training time : {:.03f} +- {:.03f}\n".format(np.mean(training_times),
+        agregatedText += ("Training time : {:.03f} +- {:.03f}\n".format(np.mean(training_times),
                                                       np.std(training_times)))
     else:
-        text += "Training time : {:.03f}\n".format(training_time)
+        text += "Training time: {:.03f}\n".format(training_time)
     
     if agregated:
-        text += ("Testing time : {:.03f} +- {:.03f}\n".format(np.mean(testing_times),
+        agregatedText += ("Testing time: {:.03f} +- {:.03f}\n".format(np.mean(testing_times),
                                                       np.std(testing_times)))
     else:
-        text += "Testing time : {:.03f}\n".format(testing_time)
+        text += "Testing time: {:.03f}\n".format(testing_time)
 
     if agregated:
-        text += ("Total time : {:.03f} +- {:.03f}\n".format(np.mean(total_times),
+        agregatedText += ("Total time: {:.03f} +- {:.03f}\n".format(np.mean(total_times),
                                                       np.std(total_times)))
     else:
-        text += "Total time : {:.03f}\n".format(total_time)
+        text += "Total time: {:.03f}\n".format(total_time)
 
     # vis.text(text.replace('\n', '<br/>'))
-    print(text)
+    f = open("/images/experimentResults.txt", "w")
+    f.write("Dataset: " + dataset + "\n")
+    f = open("/images/experimentResults.txt", "a")
+    f.write("Model: " + model + "\n")
+    f.write("Training Percentage: " + str(training_sample) + "\n")
+    f.write(get_gpu_info(gpu))
+    f.write("Number of Runs: " + str(runs) + "\n")
+    f.write(c_matrix)
+    print(c_matrix)
 
-
+    if agregated:
+        f.write(agregatedText)
+        print(agregatedText)
+    else:
+        f.write(text)
+        print(text)
 
 def sample_gt(gt, train_size, mode='random'):
     """Extract a fixed percentage of samples from an array of labels.
@@ -494,8 +522,8 @@ def sample_gt(gt, train_size, mode='random'):
        train_indices, test_indices = sklearn.model_selection.train_test_split(X, train_size=train_size, stratify=y)
        train_indices = [list(t) for t in zip(*train_indices)]
        test_indices = [list(t) for t in zip(*test_indices)]
-       train_gt[train_indices] = gt[train_indices]
-       test_gt[test_indices] = gt[test_indices]
+       train_gt[tuple(train_indices)] = gt[tuple(train_indices)]
+       test_gt[tuple(test_indices)] = gt[tuple(test_indices)]
     elif mode == 'fixed':
        print("Sampling {} with train size = {}".format(mode, train_size))
        train_indices, test_indices = [], []
